@@ -2249,6 +2249,129 @@
             }
         }
 
+        /* --- TELEFONO: SCALA TIPOGRAFICA E SPAZI COMPATTI --- */
+        html {
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+
+        @media (max-width: 600px) {
+            section {
+                padding-top: 4.5rem;
+                padding-bottom: 4.5rem;
+            }
+
+            section,
+            #education,
+            #experience,
+            #projects,
+            #fairwind {
+                padding-left: 6vw;
+                padding-right: 6vw;
+            }
+
+            #hero {
+                padding: 6rem 6vw 3.5rem;
+                gap: 2.5rem;
+            }
+
+            .hero-text {
+                padding-top: 0;
+            }
+
+            .hero-text h1 {
+                font-size: clamp(2.8rem, 14vw, 4rem);
+                margin-bottom: 1.5rem;
+            }
+
+            .hero-text p {
+                text-align: left;
+                font-size: 1rem;
+                padding-left: 1rem;
+            }
+
+            .section-title {
+                font-size: 2.3rem;
+                margin-bottom: 2.5rem;
+                gap: 1rem;
+            }
+
+            .card-content {
+                padding: 1.5rem;
+            }
+
+            .card-content h3 {
+                font-size: 1.55rem;
+            }
+
+            .card-content p.desc,
+            .fw-intro p,
+            .app-content .desc {
+                font-size: 1rem;
+            }
+
+            .tech-bullets {
+                margin-bottom: 1.75rem;
+            }
+
+            .tech-bullets li {
+                font-size: 0.98rem;
+                padding-left: 1.5rem;
+            }
+
+            .tag {
+                font-size: 0.72rem;
+                margin-bottom: 1.1rem;
+            }
+
+            .edu-grade {
+                font-size: 1.6rem;
+            }
+
+            .btn-outline {
+                font-size: 1rem;
+            }
+
+            .skill-category-card,
+            .fw-card {
+                padding: 1.5rem;
+            }
+
+            .skill-category-card h3 {
+                font-size: 1.25rem;
+            }
+
+            .skill-pill {
+                font-size: 0.9rem;
+            }
+
+            .fw-role {
+                padding: 1.25rem;
+            }
+
+            .fw-stat {
+                padding: 1.1rem 0.9rem;
+            }
+
+            .pixel-divider {
+                height: 150px;
+            }
+
+            .contact-cta h3 {
+                font-size: 2.3rem;
+            }
+
+            .email-link {
+                font-size: 1.1rem;
+                padding: 0.9rem 1.6rem;
+            }
+
+            footer {
+                padding-top: 5rem;
+                padding-bottom: 3rem;
+            }
+        }
+
         /* --- PROJECTS: 4 CARD (2x2, 4 in fila su schermi larghi) --- */
         #projects .grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2631,7 +2754,7 @@
                 <i class="fa-solid fa-language"></i>
                 <span class="lang-opt" data-l="en">EN</span>/<span class="lang-opt" data-l="it">IT</span>
             </button>
-            <a href="assets/Vincenzo_Mataluna_CV.pdf" target="_blank" class="btn-nav btn-cv" data-i18n="nav.cv"><i
+            <a href="assets/Vincenzo_Mataluna_CV_ENG.pdf" target="_blank" class="btn-nav btn-cv" data-i18n="nav.cv"><i
                     class="fa-solid fa-file-pdf"></i> Download CV</a>
         </div>
     </nav>
@@ -2688,9 +2811,9 @@
                             Secure Applications in a Cross-Platform Qt/C++ Environment"</em> (case study: FairWindSK).</p>
                     <ul class="tech-bullets">
                         <li data-i18n="edu.deg.l1">Systems &amp; Network Security</li>
-                        <li data-i18n="edu.deg.l2">Software Engineering</li>
+                        <li data-i18n="edu.deg.l2">Mobile Device Programming</li>
                         <li data-i18n="edu.deg.l3">Relational Databases</li>
-                        <li>Machine Learning</li>
+                        <li>Artificial Intelligence</li>
                     </ul>
                     <a href="#fairwind" class="btn-outline" data-i18n="edu.deg.btn">
                         <i class="fa-solid fa-anchor"></i> Thesis Project
@@ -3492,7 +3615,7 @@
                 "edu.deg.h": `Ingegneria e Scienze Informatiche per la Cybersecurity`,
                 "edu.deg.desc": `Laureato il 27/10/2026 con la tesi <em>"Sviluppare Applicazioni Sicure in Ambiente Multipiattaforma Qt/C++"</em> (caso di studio: FairWindSK).`,
                 "edu.deg.l1": `Sicurezza dei Sistemi e delle Reti`,
-                "edu.deg.l2": `Ingegneria del Software`,
+                "edu.deg.l2": `Programmazione Dispositivi Mobili`,
                 "edu.deg.l3": `Basi di Dati Relazionali`,
                 "edu.deg.btn": `<i class="fa-solid fa-anchor"></i> Progetto di tesi`,
                 "proj.fw.more": `<i class="fa-solid fa-anchor"></i> Scopri il progetto`,
@@ -3639,7 +3762,10 @@
                     if (value !== undefined) n.innerHTML = value;
                 });
                 document.documentElement.lang = lang;
-                document.title = lang === "it" ? "Vincenzo Mataluna | Portfolio" : "Vincenzo Mataluna | Portfolio";
+                // Il pulsante "Download CV" scarica il curriculum nella lingua scelta
+                document.querySelectorAll(".btn-cv").forEach(function (cv) {
+                    cv.href = lang === "it" ? "assets/Vincenzo_Mataluna_CV_ITA.pdf" : "assets/Vincenzo_Mataluna_CV_ENG.pdf";
+                });
                 try { localStorage.setItem("lang", lang); } catch (e) { }
             }
 
@@ -4406,20 +4532,54 @@
                 cachedBounds = null;
             }
 
+            var touchActive = false;
+            var touchReleaseTimer = null;
+
             divider.addEventListener("pointermove", function (event) {
+                if (event.pointerType === "touch") return; // il tocco e' gestito dagli eventi touch qui sotto
                 pointAt(event.clientX, event.clientY);
             }, { passive: true });
 
-            divider.addEventListener("pointerenter", function () {
+            divider.addEventListener("pointerenter", function (event) {
+                if (event.pointerType === "touch") return;
                 cachedBounds = canvas.getBoundingClientRect();
             }, { passive: true });
 
-            divider.addEventListener("pointerleave", releasePointer, { passive: true });
+            divider.addEventListener("pointerleave", function (event) {
+                if (event.pointerType === "touch" || touchActive) return;
+                releasePointer();
+            }, { passive: true });
+
+            // Telefono / tablet: il gioco segue il dito, anche mentre la pagina scorre
+            function touchAt(event) {
+                var touch = event.touches && event.touches[0];
+                if (!touch) return;
+                cachedBounds = canvas.getBoundingClientRect(); // la pagina puo' essersi spostata
+                pointAt(touch.clientX, touch.clientY);
+            }
+
+            divider.addEventListener("touchstart", function (event) {
+                touchActive = true;
+                clearTimeout(touchReleaseTimer);
+                touchAt(event);
+            }, { passive: true });
+
+            divider.addEventListener("touchmove", touchAt, { passive: true });
+
+            function endTouch() {
+                touchActive = false;
+                clearTimeout(touchReleaseTimer);
+                // lascia la scia visibile un attimo dopo aver sollevato il dito
+                touchReleaseTimer = setTimeout(releasePointer, 700);
+            }
+
+            divider.addEventListener("touchend", endTouch, { passive: true });
+            divider.addEventListener("touchcancel", endTouch, { passive: true });
 
             // Scroll con la rotella: il mouse resta fermo ma lo spartitraffico gli scorre sotto.
             // Ricalcoliamo la posizione del cursore cosi' il giochino parte comunque.
             window.addEventListener("scroll", function () {
-                if (!lastMouse.known || !isVisible) return;
+                if (touchActive || !lastMouse.known || !isVisible) return;
                 cachedBounds = canvas.getBoundingClientRect();
                 var inside = lastMouse.x >= cachedBounds.left && lastMouse.x <= cachedBounds.right &&
                     lastMouse.y >= cachedBounds.top && lastMouse.y <= cachedBounds.bottom;
@@ -4430,11 +4590,19 @@
                 }
             }, { passive: true });
 
+            // Sul telefono la barra dell'indirizzo che appare/scompare durante lo scroll genera "resize":
+            // ricostruiamo il gioco solo se cambia davvero la dimensione dello spartitraffico.
+            var lastSize = "";
             window.addEventListener("resize", function () {
+                var b = divider.getBoundingClientRect();
+                var size = Math.round(b.width) + "x" + Math.round(b.height);
+                if (size === lastSize) return;
+                lastSize = size;
                 resize();
             }, { passive: true });
 
             resize();
+            lastSize = Math.round(divider.getBoundingClientRect().width) + "x" + Math.round(divider.getBoundingClientRect().height);
 
             if ("IntersectionObserver" in window) {
                 var observer = new IntersectionObserver(function (entries) {
