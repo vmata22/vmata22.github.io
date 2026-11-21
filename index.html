@@ -3961,11 +3961,18 @@
             var animationFrame = null;
             var isVisible = false;
             var cachedBounds = null;
+            // Scala del gioco in base alla larghezza reale (1 = PC, ~0.35 = telefono)
+            var scale = 1;
+            // Densita' in base all'area (meno elementi su schermi piccoli)
+            var density = 1;
+            var lastRippleTime = 0;
 
             function resize() {
                 cachedBounds = canvas.getBoundingClientRect();
                 canvas.width = Math.max(1, Math.floor(cachedBounds.width / 2));
                 canvas.height = Math.max(1, Math.floor(cachedBounds.height / 2));
+                scale = Math.max(0.35, Math.min(1, canvas.width / 600));
+                density = Math.max(0.25, Math.min(1, (canvas.width * canvas.height) / (700 * 160)));
                 particles = [];
                 sandShells = [];
                 seaPixels = [];
@@ -3978,6 +3985,8 @@
                 waterLilies = [];
                 waterRocks = [];
                 var amount = effect === "water" ? 220 : effect === "sky" ? 20 : effect === "sand" ? 180 : effect === "leaves" ? 1200 : 78;
+                if (effect === "leaves" || effect === "water") amount = Math.round(amount * density);
+                if (effect === "sky") amount = Math.max(8, Math.round(amount * Math.sqrt(density)));
                 for (var index = 0; index < amount; index++) {
                     particles.push({
                         x: Math.random() * canvas.width,
@@ -3986,7 +3995,7 @@
                         originY: 0,
                         vx: 0,
                         vy: 0,
-                        size: effect === "water" ? Math.random() * 2 + 0.7 : effect === "sand" ? Math.random() * 1.2 + 0.4 : effect === "sky" ? Math.random() * 10 + 18 : effect === "leaves" ? Math.random() * 2.8 + 1.2 : Math.random() * 12 + 8,
+                        size: effect === "water" ? Math.random() * 2 + 0.7 : effect === "sand" ? Math.random() * 1.2 + 0.4 : effect === "sky" ? (Math.random() * 10 + 18) * Math.max(0.45, scale) : effect === "leaves" ? Math.random() * 2.8 + 1.2 : Math.random() * 12 + 8,
                         angle: Math.random() * Math.PI,
                         spin: (Math.random() - 0.5) * 0.035,
                         phase: Math.random() * Math.PI * 2,
@@ -4000,7 +4009,7 @@
                     var lilyAttempts = 0;
                     while (waterLilies.length < 4 && lilyAttempts < 500) {
                         lilyAttempts++;
-                        var lilySize = Math.random() * 7 + 13;
+                        var lilySize = (Math.random() * 7 + 13) * Math.max(0.55, scale);
                         var lilyCandidate = {
                             x: lilySize + Math.random() * (canvas.width - lilySize * 2),
                             y: lilySize + Math.random() * (canvas.height - lilySize * 2),
@@ -4023,12 +4032,13 @@
                             flower: waterLilies.length % 2
                         });
                     }
-                    for (var rockIndex = 0; rockIndex < 70; rockIndex++) {
+                    var rockCount = Math.round(70 * density);
+                    for (var rockIndex = 0; rockIndex < rockCount; rockIndex++) {
                         waterRocks.push({
                             x: Math.random() * canvas.width,
                             y: Math.random() * canvas.height,
-                            width: Math.random() * 8 + 4,
-                            height: Math.random() * 5 + 3,
+                            width: (Math.random() * 8 + 4) * Math.max(0.6, scale),
+                            height: (Math.random() * 5 + 3) * Math.max(0.6, scale),
                             tone: Math.floor(Math.random() * 5),
                             tilt: Math.random() * Math.PI
                         });
@@ -4083,7 +4093,7 @@
                     context.restore();
                 });
                 waterRipples.forEach(function (ripple) {
-                    ripple.radius += 0.45;
+                    ripple.radius += 0.45 * Math.max(0.55, scale);
                     var maxR = ripple.maxRadius || 95;
                     var progress = Math.min(1, ripple.radius / maxR);
                     ripple.life -= progress >= 0.85 ? 0.02 : 0.006;
@@ -4094,11 +4104,11 @@
                         context.beginPath();
                         context.arc(ripple.x, ripple.y, ripple.radius, 0, Math.PI * 2);
                         context.stroke();
-                        if (ripple.radius > 5) {
+                        if (ripple.radius > 5 * scale) {
                             context.strokeStyle = "rgba(225, 255, 248, " + (alpha * 0.42) + ")";
                             context.lineWidth = Math.max(0.3, 0.9 * alpha);
                             context.beginPath();
-                            context.arc(ripple.x, ripple.y, Math.max(1, ripple.radius - 5), 0, Math.PI * 2);
+                            context.arc(ripple.x, ripple.y, Math.max(1, ripple.radius - 5 * scale), 0, Math.PI * 2);
                             context.stroke();
                         }
                     }
@@ -4139,14 +4149,18 @@
                         var distanceX = particle.x - pointer.x;
                         var distanceY = particle.y - pointer.y;
                         var distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
-                        if (distance < 75 && distance > 0) {
-                            var force = (75 - distance) / 75;
-                            // Push away radially a bit
-                            var pushX = (distanceX / distance) * force * 0.5;
-                            var pushY = (distanceY / distance) * force * 0.5;
-                            // Pull strongly along the pointer movement (Rake effect)
-                            var rakeX = (pointer.vx || 0) * force * 0.4;
-                            var rakeY = (pointer.vy || 0) * force * 0.4;
+                        // Pennello proporzionato allo schermo: su telefono piu' piccolo e piu' preciso
+                        var brush = Math.max(20, 75 * scale);
+                        if (distance < brush && distance > 0) {
+                            var force = (brush - distance) / brush;
+                            // Push away radially a bit (meno su telefono, cosi' le foglie non "scappano")
+                            var pushK = 0.5 * Math.max(0.35, scale);
+                            var pushX = (distanceX / distance) * force * pushK;
+                            var pushY = (distanceY / distance) * force * pushK;
+                            // Pull along the pointer movement (Rake effect): su telefono seguono di piu' il dito
+                            var rakeK = 0.4 + 0.2 * (1 - scale);
+                            var rakeX = (pointer.vx || 0) * force * rakeK;
+                            var rakeY = (pointer.vy || 0) * force * rakeK;
                             
                             particle.vx += pushX + rakeX;
                             particle.vy += pushY + rakeY;
@@ -4215,7 +4229,7 @@
                     if (clumped > particles.length * 0.95) {
                         particles.forEach(function (p) {
                             var angle = Math.random() * Math.PI * 2;
-                            var power = 150 + Math.random() * 200; // Forza esplosiva per spargerle su tutta la fascia
+                            var power = (150 + Math.random() * 200) * scale; // Forza esplosiva per spargerle su tutta la fascia
                             p.vx += Math.cos(angle) * power;
                             p.vy += Math.sin(angle) * power;
                         });
@@ -4460,22 +4474,26 @@
             }
 
             function drawSky() {
+                // s = scala per gli elementi del cielo (sole, uccelli, vento); mai troppo minuscoli
+                var s = Math.max(0.45, scale);
                 context.fillStyle = "rgba(255, 240, 180, 0.45)";
-                context.beginPath(); context.arc(canvas.width * 0.8, canvas.height * 0.35, 30, 0, Math.PI * 2); context.fill();
+                context.beginPath(); context.arc(canvas.width * 0.8, canvas.height * 0.35, 30 * s, 0, Math.PI * 2); context.fill();
                 context.fillStyle = "rgba(255, 240, 180, 0.25)";
-                context.beginPath(); context.arc(canvas.width * 0.8, canvas.height * 0.35, 55, 0, Math.PI * 2); context.fill();
-                
+                context.beginPath(); context.arc(canvas.width * 0.8, canvas.height * 0.35, 55 * s, 0, Math.PI * 2); context.fill();
+
                 context.strokeStyle = "rgba(60, 75, 80, 0.5)";
-                context.lineWidth = 1.5;
-                for (var b = 0; b < 6; b++) {
-                    var bx = ((animationTime * 0.03 + b * 450) % (canvas.width + 200)) - 100;
-                    var by = canvas.height * 0.25 + Math.sin(bx * 0.008 + b) * 40 + b * 15;
-                    var flap = Math.sin(animationTime * 0.015 + b * 2) * 5;
+                context.lineWidth = Math.max(1, 1.5 * s);
+                var birdCount = scale < 0.6 ? 4 : 6;
+                for (var b = 0; b < birdCount; b++) {
+                    var bx = ((animationTime * 0.03 * s + b * 450 * s) % (canvas.width + 200 * s)) - 100 * s;
+                    var by = canvas.height * 0.25 + Math.sin(bx * 0.008 / s + b) * 40 * s + b * 15 * s;
+                    var flap = Math.sin(animationTime * 0.015 + b * 2) * 5 * s;
+                    var wing = 12 * s;
                     context.beginPath();
                     context.moveTo(bx, by);
-                    context.quadraticCurveTo(bx - 6, by - 4 + flap, bx - 12, by - flap * 0.5);
+                    context.quadraticCurveTo(bx - wing / 2, by - 4 * s + flap, bx - wing, by - flap * 0.5);
                     context.moveTo(bx, by);
-                    context.quadraticCurveTo(bx + 6, by - 4 + flap, bx + 12, by - flap * 0.5);
+                    context.quadraticCurveTo(bx + wing / 2, by - 4 * s + flap, bx + wing, by - flap * 0.5);
                     context.stroke();
                 }
 
@@ -4487,7 +4505,7 @@
                         var dx = particle.x + particle.size - pointer.x;
                         var dy = particle.y - pointer.y;
                         var dist = Math.sqrt(dx * dx + dy * dy);
-                        var influenceRadius = 250;
+                        var influenceRadius = 250 * s;
                         if (dist < influenceRadius) {
                             var force = (influenceRadius - dist) / influenceRadius;
                             if (dx > 0) {
@@ -4508,7 +4526,7 @@
                         particle.x = -particle.size * 3;
                         particle.y = Math.random() * canvas.height;
                     }
-                    var alpha = particle.size / 30; // further clouds are fainter
+                    var alpha = particle.size / (30 * s); // further clouds are fainter
                     context.fillStyle = "rgba(255, 255, 255, " + (alpha * 0.9) + ")";
                     context.fillRect(particle.x, particle.y, particle.size * 2, particle.size * 0.6);
                     context.fillRect(particle.x + particle.size * 0.3, particle.y - particle.size * 0.4, particle.size * 1.2, particle.size * 0.8);
@@ -4518,21 +4536,22 @@
 
                 if (pointer.active) {
                     context.strokeStyle = "rgba(255, 255, 255, 0.35)";
-                    context.lineWidth = 1.5;
+                    context.lineWidth = Math.max(1, 1.5 * s);
                     context.lineCap = "round";
+                    var gustLength = 180 * s;
                     for (var w = 0; w < 4; w++) {
                         var angle = animationTime * 0.004 + w * (Math.PI / 2);
-                        var radius = 15 + Math.sin(animationTime * 0.003 + w) * 10;
+                        var radius = (15 + Math.sin(animationTime * 0.003 + w) * 10) * s;
                         context.beginPath();
-                        context.arc(pointer.x, pointer.y, radius, angle, angle + Math.PI * 0.4);
+                        context.arc(pointer.x, pointer.y, Math.max(2, radius), angle, angle + Math.PI * 0.4);
                         context.stroke();
-                        
-                        var gustX = pointer.x + 20 + ((animationTime * 0.2 + w * 45) % 180);
-                        var gustY = pointer.y + Math.sin(gustX * 0.04 + w) * 15;
-                        var alpha = 1 - (gustX - pointer.x - 20) / 180;
+
+                        var gustX = pointer.x + 20 * s + ((animationTime * 0.2 * s + w * 45 * s) % gustLength);
+                        var gustY = pointer.y + Math.sin(gustX * 0.04 / s + w) * 15 * s;
+                        var alpha = 1 - (gustX - pointer.x - 20 * s) / gustLength;
                         if (alpha > 0) {
                             context.fillStyle = "rgba(255, 255, 255, " + (alpha * 0.5) + ")";
-                            context.fillRect(gustX, gustY, 14, 2);
+                            context.fillRect(gustX, gustY, 14 * s, Math.max(1, 2 * s));
                         }
                     }
                 }
@@ -4573,11 +4592,16 @@
                         var waterDistanceX = lastWaterPoint ? pointer.x - lastWaterPoint.x : 0;
                         var waterDistanceY = lastWaterPoint ? pointer.y - lastWaterPoint.y : 0;
                         var waterDistance = Math.sqrt(waterDistanceX * waterDistanceX + waterDistanceY * waterDistanceY);
-                        if (!lastWaterPoint || waterDistance > 60) {
-                            var maxRippleRadius = 100 + Math.random() * 40;
-                            waterRipples.push({ x: pointer.x, y: pointer.y, radius: 2.5, maxRadius: maxRippleRadius, life: 1 });
+                        // Su schermi piccoli: onde piu' frequenti (meno distanza tra una e l'altra,
+                        // e ne nascono anche tenendo il dito fermo) e piu' piccole.
+                        var rippleSpacing = 60 * scale;
+                        var rippleInterval = 700 * scale;
+                        if (!lastWaterPoint || waterDistance > rippleSpacing || (scale < 1 && time - lastRippleTime > rippleInterval)) {
+                            var maxRippleRadius = (100 + Math.random() * 40) * scale;
+                            waterRipples.push({ x: pointer.x, y: pointer.y, radius: 2.5 * Math.max(0.5, scale), maxRadius: maxRippleRadius, life: 1 });
                             if (waterRipples.length > 25) waterRipples.shift();
                             lastWaterPoint = { x: pointer.x, y: pointer.y };
+                            lastRippleTime = time;
                         }
                     } else if (effect === "sand") {
                         if (!lastSandPoint) {
