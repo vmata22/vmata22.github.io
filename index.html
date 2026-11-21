@@ -2255,6 +2255,65 @@
             text-size-adjust: 100%;
         }
 
+        /* Nessuna immagine o video piu' largo del suo contenitore */
+        img,
+        video {
+            max-width: 100%;
+        }
+
+        /* Rete di sicurezza: la pagina non deve mai scorrere di lato */
+        @supports (overflow: clip) {
+            html,
+            body {
+                overflow-x: clip;
+            }
+        }
+
+        @supports not (overflow: clip) {
+            body {
+                overflow-x: hidden;
+            }
+        }
+
+        /* Schede RedPal e Stick&Roll: le colonne possono restringersi e il logo si adatta */
+        .app-content,
+        .app-media {
+            min-width: 0;
+        }
+
+        .app-content > img {
+            max-width: min(440px, 100%) !important;
+            width: 100%;
+            height: auto;
+        }
+
+        @media (max-width: 900px) {
+            .app-content,
+            .app-media {
+                width: 100%;
+            }
+
+            .app-content .tag {
+                display: inline-block;
+                max-width: 100%;
+                white-space: normal;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .app-content > img {
+                max-width: min(300px, 100%) !important;
+            }
+
+            .app-showcase {
+                gap: 1.5rem;
+            }
+
+            .app-content .btn-outline {
+                width: 100%;
+            }
+        }
+
         @media (max-width: 600px) {
             section {
                 padding-top: 4.5rem;
