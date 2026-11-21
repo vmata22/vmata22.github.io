@@ -2249,6 +2249,42 @@
             }
         }
 
+        /* --- MINIGIOCHI SU TELEFONO: MODALITA' GIOCO --- */
+        .pd-hint {
+            display: none;
+            position: absolute;
+            z-index: 4;
+            right: 10px;
+            bottom: 10px;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.45rem 0.75rem;
+            background: rgba(45, 36, 30, 0.88);
+            color: #f3c66d;
+            border: 1px solid rgba(243, 198, 109, 0.45);
+            font: 700 0.68rem/1 'Inter', sans-serif;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            pointer-events: none;
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            .pd-hint {
+                display: inline-flex;
+            }
+        }
+
+        .pixel-divider.is-playing {
+            touch-action: none;
+            outline: 4px solid #f3c66d;
+            outline-offset: -4px;
+        }
+
+        .pixel-divider.is-playing .pd-hint {
+            background: #f3c66d;
+            color: var(--text-main);
+        }
+
         /* --- TELEFONO: SCALA TIPOGRAFICA E SPAZI COMPATTI --- */
         html {
             -webkit-text-size-adjust: 100%;
@@ -3821,6 +3857,7 @@
                     if (value !== undefined) n.innerHTML = value;
                 });
                 document.documentElement.lang = lang;
+                document.dispatchEvent(new Event("langchange"));
                 // Il pulsante "Download CV" scarica il curriculum nella lingua scelta
                 document.querySelectorAll(".btn-cv").forEach(function (cv) {
                     cv.href = lang === "it" ? "assets/Vincenzo_Mataluna_CV_ITA.pdf" : "assets/Vincenzo_Mataluna_CV_ENG.pdf";
@@ -4617,23 +4654,72 @@
                 pointAt(touch.clientX, touch.clientY);
             }
 
+            // Modalita' gioco: un TOCCO sul giochino blocca la pagina e il dito gioca;
+            // un tocco fuori dal giochino sblocca e la pagina torna a scorrere.
+            // Uno scorrimento che parte sopra il giochino (senza tocco) fa scorrere normalmente.
+            var playing = false;
+            var tapStart = null;
+            var hint = document.createElement("span");
+            hint.className = "pd-hint";
+            hint.setAttribute("aria-hidden", "true");
+            divider.appendChild(hint);
+
+            function updateHint() {
+                var it = document.documentElement.lang === "it";
+                hint.innerHTML = playing
+                    ? '<i class="fa-solid fa-xmark"></i> ' + (it ? "Tocca fuori per uscire" : "Tap outside to exit")
+                    : '<i class="fa-solid fa-hand-pointer"></i> ' + (it ? "Tocca per giocare" : "Tap to play");
+            }
+
+            function setPlaying(value) {
+                playing = value;
+                divider.classList.toggle("is-playing", value);
+                updateHint();
+                if (!value) {
+                    touchActive = false;
+                    clearTimeout(touchReleaseTimer);
+                    releasePointer();
+                }
+            }
+
+            updateHint();
+            document.addEventListener("langchange", updateHint);
+
             divider.addEventListener("touchstart", function (event) {
                 touchActive = true;
                 clearTimeout(touchReleaseTimer);
+                var t = event.touches[0];
+                tapStart = t ? { x: t.clientX, y: t.clientY, time: Date.now() } : null;
+                if (playing) event.preventDefault(); // pagina bloccata mentre si gioca
                 touchAt(event);
-            }, { passive: true });
+            }, { passive: false });
 
-            divider.addEventListener("touchmove", touchAt, { passive: true });
+            divider.addEventListener("touchmove", function (event) {
+                if (playing) event.preventDefault();
+                touchAt(event);
+            }, { passive: false });
 
-            function endTouch() {
+            function endTouch(event) {
                 touchActive = false;
                 clearTimeout(touchReleaseTimer);
+                // Tocco breve e quasi fermo = "clic" sul giochino: entra in modalita' gioco
+                var t = event && event.changedTouches && event.changedTouches[0];
+                if (!playing && tapStart && t && event.type === "touchend") {
+                    var moved = Math.abs(t.clientX - tapStart.x) + Math.abs(t.clientY - tapStart.y);
+                    if (moved < 12 && Date.now() - tapStart.time < 600) setPlaying(true);
+                }
+                tapStart = null;
                 // lascia la scia visibile un attimo dopo aver sollevato il dito
                 touchReleaseTimer = setTimeout(releasePointer, 700);
             }
 
             divider.addEventListener("touchend", endTouch, { passive: true });
             divider.addEventListener("touchcancel", endTouch, { passive: true });
+
+            // Tocco fuori dal giochino: esce dalla modalita' gioco e la pagina scorre di nuovo
+            document.addEventListener("touchstart", function (event) {
+                if (playing && !divider.contains(event.target)) setPlaying(false);
+            }, { passive: true, capture: true });
 
             // Scroll con la rotella: il mouse resta fermo ma lo spartitraffico gli scorre sotto.
             // Ricalcoliamo la posizione del cursore cosi' il giochino parte comunque.
